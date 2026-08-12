@@ -1,0 +1,285 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<title>은어사전</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.13.1/font/bootstrap-icons.min.css">
+
+<style>
+@import url("https://cdn.jsdelivr.net/npm/bootstrap-icons@1.13.1/font/bootstrap-icons.min.css");
+
+@font-face {
+    font-family: 'Pretendard';
+    src: url('https://cdn.jsdelivr.net/gh/projectnoonnu/pretendard@1.0/Pretendard-Regular.woff2') format('woff2');
+    font-weight: 400;
+    font-display: swap;
+}
+
+body {
+    font-family: Pretendard, sans-serif;
+    background: #ffffff;
+    margin: 0;
+}
+
+/* 상단 영역 */
+.top-bar {
+    display: flex;
+    justify-content: center;
+    margin-top: 80px;
+}
+
+/* 검색 전체 박스 */
+.search-area {
+    position: relative;
+    display: flex;
+    width: 700px;
+}
+
+/* 검색창 */
+#keyword {
+    flex: 1;
+    padding: 12px;
+    font-size: 16px;
+    border: 1px solid #ccc;
+    border-radius: 25px 0 0 25px;
+    outline: none;
+}
+
+/* 카테고리 */
+select {
+    padding: 12px;
+    border: 1px solid #ccc;
+    border-left: none;
+    font-size: 14px;
+}
+
+/* 버튼 */
+button {
+    padding: 12px 20px;
+    border: none;
+    background: #4285f4;
+    color: white;
+    cursor: pointer;
+    border-radius: 0 25px 25px 0;
+}
+
+button:hover {
+    background: #3367d6;
+}
+
+/* 자동완성 (⭐ 레이아웃 안 밀리게 핵심) */
+#suggestions {
+    position: absolute;
+    top: 50px;
+    left: 0;
+    width: 100%;
+    border: 1px solid #ccc;
+    background: white;
+    display: none;
+    z-index: 10;
+}
+
+.suggestion-item {
+    padding: 10px;
+    cursor: pointer;
+}
+
+.suggestion-item:hover {
+    background: #f1f1f1;
+}
+
+/* 결과 영역 */
+#result {
+    width: 90%;
+    margin: 40px 0 0 30px;
+}
+
+/* 결과 카드 */
+.item {
+    border: 8px solid lightblue;
+    padding: 15px;
+    margin-bottom: 15px;
+    border-radius: 20px;
+}
+
+img {
+    max-width: 88%;
+    margin-top: 10px;
+}
+</style>
+</head>
+
+<body>
+
+<div class="top-bar">
+    <div class="search-area">
+
+        <input type="search" id="keyword" placeholder="검색어 입력">
+
+        <!-- 대분류-->
+        <select id="mainCategory" onchange="updateSubCategory()">
+            <option value="all">전체</option>
+        </select>
+
+        <!-- 종류 -->
+        <select id="subCategory">
+            <option value="all">전체</option>
+        </select>
+
+        <button onclick="searchKeyword()">검색</button>
+
+        <!-- 자동완성 -->
+        <div id="suggestions"></div>
+
+    </div>
+</div>
+
+<div id="result"></div>
+
+<script>
+const keywordData = [
+    // 줄임말
+    // 초성체
+    {keyword: "ㄱ", main: "줄임말", sub: "초성체", result: `(동) 가라.`, link: "https://namu.wiki/w/ㄱ#s-3"},
+    {keyword: "ㄱㄱ", main: "줄임말", sub: "초성체", result: `(동) 'ㄱ'과 같은 의미를 지냄. 보통 'ㄱ'보다 'ㄱㄱ'이 긍정적으로 여겨지는 경우가 많다.`, link: "https://namu.wiki/w/ㄱ#s-3"},
+    {keyword: "ㄱㄴ", main: "줄임말", sub: "초성체", result: `(명) 가능.`, link: "https://namu.wiki/w/가능"},
+    {keyword: "ㄱㄷ", main: "줄임말", sub: "초성체", result: `(동) 기다려.`},
+    {keyword: "ㄱㅅ", main: "줄임말", sub: "초성체", result: `<b>1.</b> (동) 감사하다.<br><b>2.</b> (명) 감사.`, link: "https://namu.wiki/w/감사합니다"},
+    {keyword: "ㄲ", main: "줄임말", sub: "초성체", result: `(동) 'ㄱㄱ'의 축약형. 'ㄱㄱ'이 'ㄲ'과 비슷하게 생긴 데서 유래했다.`, link: "https://namu.wiki/w/ㄱ#s-3"},
+    {keyword: "ㄴ", main: "줄임말", sub: "초성체", result: `<b>1.</b> (동) 'ㄴㄴ'과 같은 의미를 지냄. 'ㄴ'은 예의가 없어 보일 수도 있다.<br><b>2.</b> (부) <명사> ㄴ으로 써 <명사>를 하지 않겠다는 의미로 쓰인다.`, link: "https://namu.wiki/w/ㄴ#s-2.1.1"},
+    {keyword: "ㄴㄴ", main: "줄임말", sub: "초성체", result: `(동) 거부함. 'ㄴ'을 굉장히 연달아 쓰면 굉장히 다급해 보인다.`, link: "https://namu.wiki/w/ㄴ#s-2.1.1"},
+    
+
+    // 일반
+    // 시간
+    {keyword: "잠수", main: "일반", sub: "시간", result: `<b>1.</b> (명) 연락을 끊고 사라짐.<br><b>2.</b> (명) 게임을 짧은 일정기간 동안 하지 않음.`, link: "https:/namu.wiki/w/잠수(은어)"}
+];
+
+const inputBox = document.getElementById("keyword");
+const suggestionBox = document.getElementById("suggestions");
+
+// 엔터키
+inputBox.addEventListener("keypress", e => {
+    if (e.key === "Enter") {
+        searchKeyword();
+        suggestionBox.style.display = "none";
+    }
+});
+
+// 큰부류 초기화
+function initCategories() {
+    const main = document.getElementById("mainCategory");
+    const categories = [...new Set(keywordData.map(item => item.main))];
+
+    categories.forEach(cat => {
+        main.innerHTML += `<option value="${cat}">${cat}</option>`;
+    });
+}
+
+// 작은부류
+function updateSubCategory() {
+    const mainValue = document.getElementById("mainCategory").value;
+    const sub = document.getElementById("subCategory");
+
+    sub.innerHTML = `<option value="all">전체</option>`;
+
+    const filtered = keywordData.filter(item => item.main === mainValue);
+    const subs = [...new Set(filtered.map(item => item.sub))];
+
+    subs.forEach(s => {
+        sub.innerHTML += `<option value="${s}">${s}</option>`;
+    });
+}
+
+// 자동완성 (최대 5개)
+inputBox.addEventListener("input", () => {
+    const input = inputBox.value.toLowerCase();
+    suggestionBox.innerHTML = "";
+
+    if (!input) {
+        suggestionBox.style.display = "none";
+        return;
+    }
+
+    const matches = keywordData
+        .filter(item => item.keyword.includes(input))
+        .slice(0, 5);
+
+    matches.forEach(item => {
+        const div = document.createElement("div");
+        div.className = "suggestion-item";
+        div.innerText = item.keyword;
+
+        div.onclick = () => {
+            inputBox.value = item.keyword;
+            suggestionBox.style.display = "none";
+            searchKeyword();
+        };
+
+        suggestionBox.appendChild(div);
+    });
+
+    suggestionBox.style.display = matches.length ? "block" : "none";
+});
+
+// 검색
+function searchKeyword() {
+    const input = inputBox.value.toLowerCase();
+    const main = document.getElementById("mainCategory").value;
+    const sub = document.getElementById("subCategory").value;
+    const resultBox = document.getElementById("result");
+
+    const results = keywordData.filter(item => {
+        return (
+            item.keyword.includes(input) &&
+            (main === "all" || item.main === main) &&
+            (sub === "all" || item.sub === sub)
+        );
+    });
+
+    if (results.length > 0) {
+        resultBox.innerHTML = results.length
+    ? results.map(item => `
+        <div class="item">
+            <strong>${item.keyword}</strong> <br>
+            ${item.result}
+            <br>
+            ${item.link ? `
+                <br><a href="${item.link}" target="_blank">
+                    자세히 알아보기
+               </a>
+            ` : ""}
+            
+            ${item.shortcut ? `
+                | <a href="${item.shortcut}" target="_blank">
+                    바로가기 <i class="bi bi-box-arrow-up-right"></i>
+                </a>
+            ` : ""}
+            
+            ${item.together ? `
+                | 관련한 용어: ${item.together}
+            ` : ""}
+            
+            ${item.example ? `
+                | 용례: ${item.example}
+            ` : ""}
+            
+            | ${item.main} (${item.sub})<br>
+            
+            ${item.image ? `<img src="${item.image}">` : ""}
+            <p style="font-size: 10px; color: gray;">
+              ${item.alt ? `
+                  <br>${item.alt}
+              ` : ""}
+            </p>
+        </div>
+    `).join("")
+    : "결과 없음";
+    }
+}
+
+initCategories();
+</script>
+
+</body>
+</html>
